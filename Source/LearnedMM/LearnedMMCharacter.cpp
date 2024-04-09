@@ -11,6 +11,10 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 
+#include "DrawDebugHelpers.h"
+#include "Engine/World.h"
+
+
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 //////////////////////////////////////////////////////////////////////////
@@ -54,10 +58,15 @@ ALearnedMMCharacter::ALearnedMMCharacter()
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
 
+
 void ALearnedMMCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
+
+
+	//Tick 함수 등록
+	PrimaryActorTick.bCanEverTick = true;
 
 	//Add Input Mapping Context
 	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
@@ -67,6 +76,18 @@ void ALearnedMMCharacter::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
+}
+
+void ALearnedMMCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	
+	FVector Start = GetMesh()->GetComponentLocation();
+	FVector End = Start + GetActorForwardVector() * 300;
+	//DrawDebugLine(GetWorld(), Start, End, FColor::Red);
+
+	DrawDebugDirectionalArrow(GetWorld(), Start, End, 500, FColor::Red);
 }
 
 //////////////////////////////////////////////////////////////////////////
