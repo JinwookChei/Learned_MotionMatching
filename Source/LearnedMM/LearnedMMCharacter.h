@@ -71,5 +71,13 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+	FVector Lerp(FVector Pos, FVector GoalPos, float factor);
+	FVector damper_exponential(FVector x, FVector g, float damping, float dt);
+	FVector damper_exact(FVector x, FVector g, float halflife, float dt);
+	float fast_negexp(float x);
+private:
+	FVector DampingPosition;
+	FVector MoveGoalPosition;
 };
 

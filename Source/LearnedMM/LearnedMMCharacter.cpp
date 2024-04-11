@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "LearnedMMCharacter.h"
 #include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
@@ -13,6 +12,8 @@
 
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
+#include "Kismet/GameplayStatics.h"
+
 
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
@@ -76,6 +77,8 @@ void ALearnedMMCharacter::BeginPlay()
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
 	}
+
+	DampingPosition = GetMesh()->GetComponentLocation()+FVector(0, 0, 10);;
 }
 
 void ALearnedMMCharacter::Tick(float DeltaTime)
@@ -85,9 +88,49 @@ void ALearnedMMCharacter::Tick(float DeltaTime)
 	
 	FVector Start = GetMesh()->GetComponentLocation();
 	FVector End = Start + GetActorForwardVector() * 300;
+
+	MoveGoalPosition = Start + FVector(0, 0, 10);
 	//DrawDebugLine(GetWorld(), Start, End, FColor::Red);
 
 	DrawDebugDirectionalArrow(GetWorld(), Start, End, 500, FColor::Red);
+
+	//DampingPosition = Lerp(DampingPosition, MoveGoalPosition, 0.01);
+	//DampingPosition = damper_exponential(DampingPosition, MoveGoalPosition, 1, DeltaTime);
+	DampingPosition = damper_exact(DampingPosition, MoveGoalPosition, 0.9, DeltaTime);
+	DrawDebugSphere(GetWorld(), DampingPosition, 10, 16, FColor::Blue);
+
+	//FVector MoveValue = UGameplayStatics::GetPlayerController(GetWorld(), 0)->GetInputVectorAxisValue());
+	//UE_LOG(LogTemp, Log, TEXT("%f   %f"), MoveValue.X, MoveValue.Y);
+}
+
+
+//프레임이 달라지면 속도가 달라지는 문제가 있음. 
+// -> DeltaTime을 곱하여 문제해결가능. 하지만 댐핑이나 dt를 너무 높게 설정하면 (즉, damping * dt > 1이 되는 경우) 전체 시스템이 불안정해지고, 최악의 경우 폭발할 수 있습니다
+// -> damper_exponential 사용으로 해결가능.
+FVector ALearnedMMCharacter::Lerp(FVector Pos, FVector GoalPos, float factor)
+{	
+	return (1.0 - factor) * Pos + factor * GoalPos;
+}
+
+
+// 댐퍼의 동작을 특정한 타임 스텝에 맞추되 감쇠 속도를 여전히 변동 가능하게 허용함으로써 문제를 해결
+FVector ALearnedMMCharacter::damper_exponential(FVector x, FVector g, float damping, float dt)
+{
+	float ft = 1.0f / 60.0f;
+	return Lerp(x, g, 1.0f - powf(1.0 / (1.0 - ft * damping), -dt / ft));
+}
+
+FVector ALearnedMMCharacter::damper_exact(FVector x, FVector g, float halflife, float dt)
+{
+	float eps = 1e-5f;
+	return Lerp(x, g, 1.0f - fast_negexp((0.69314718056f * dt) / (halflife + eps)));
+}
+
+//음수 지수 함수를 간단한 다항식의 역수로 빠르게 근사하는 것입니다
+//불안정한 감쇠기를 빠르고 안정적이며 직관적인 매개변수를 갖는 감쇠기로 변환
+float ALearnedMMCharacter::fast_negexp(float x)
+{
+	return 1.0f / (1.0f + x + 0.48f * x * x + 0.235f * x * x * x);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -118,6 +161,7 @@ void ALearnedMMCharacter::Move(const FInputActionValue& Value)
 {
 	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
+	UE_LOG(LogTemp, Log, TEXT("%f   %f"), MovementVector.X, MovementVector.Y);
 
 	if (Controller != nullptr)
 	{
@@ -131,9 +175,12 @@ void ALearnedMMCharacter::Move(const FInputActionValue& Value)
 		// get right vector 
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
+
 		// add movement 
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
+
+
 	}
 }
 
