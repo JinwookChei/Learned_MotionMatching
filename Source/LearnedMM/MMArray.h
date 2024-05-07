@@ -9,7 +9,7 @@
 
 /**
  * 
- */
+ */ 
 class LEARNEDMM_API MMArray
 {
 public:
@@ -25,7 +25,6 @@ public:
 // alias against any other input parameters and 
 // can sometimes produce important performance
 // gains.
-
 
 
 template<typename T>
