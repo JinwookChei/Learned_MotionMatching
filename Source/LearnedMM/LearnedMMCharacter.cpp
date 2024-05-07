@@ -14,8 +14,6 @@
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 
-
-
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 //////////////////////////////////////////////////////////////////////////
@@ -64,7 +62,6 @@ void ALearnedMMCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
-
 
 	//Tick 함수 등록
 	PrimaryActorTick.bCanEverTick = true;
