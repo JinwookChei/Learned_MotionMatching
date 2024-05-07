@@ -81,7 +81,7 @@ void ALearnedMMCharacter::BeginPlay()
 void ALearnedMMCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	
+
 	FVector Start = GetMesh()->GetComponentLocation();
 	FVector End = Start + GetActorForwardVector() * 300;
 

@@ -7,6 +7,7 @@
 #include "Logging/LogMacros.h"
 #include "LearnedMMCharacter.generated.h"
 
+
 class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
@@ -46,7 +47,7 @@ class ALearnedMMCharacter : public ACharacter
 
 public:
 	ALearnedMMCharacter();
-	
+
 
 protected:
 
