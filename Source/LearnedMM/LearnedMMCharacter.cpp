@@ -9,7 +9,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
-
+#include "Components/PoseableMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
@@ -52,6 +52,11 @@ ALearnedMMCharacter::ALearnedMMCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+
+
+	//PoseableMesh를 생성하고 RootComponent에 종속 시킴.
+	PoseableMesh = CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("PoseableMesh"));
+	PoseableMesh->SetupAttachment(RootComponent);
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
@@ -141,4 +146,16 @@ void ALearnedMMCharacter::Look(const FInputActionValue& Value)
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
+
+
+	//PoseableMesh를 활용해 관절 움직임 테스트
+	FRotator R = GetMesh()->GetBoneRotationByName(TEXT("neck_01"), EBoneSpaces::WorldSpace);
+	GetMesh()->SetBoneRotationByName(TEXT("neck_01"), R + FRotator(0, 10, 0), EBoneSpaces::WorldSpace);
+
+}
+
+//UCharacter 클래스에 존재하는 GetMesh() 함수 재정의 -> PosealbeMeshComponent를 가져옴.
+UPoseableMeshComponent* ALearnedMMCharacter::GetMesh() const
+{
+	return PoseableMesh;
 }

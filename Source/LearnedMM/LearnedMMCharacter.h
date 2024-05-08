@@ -72,7 +72,14 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+public:
 
+	//SkeletalMesh대신 관절을 움직일수 있는 UPoseableMeshComponent 사용 할 예정.
+	UPROPERTY(Category = Character, EditAnywhere, meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<class UPoseableMeshComponent> PoseableMesh;
 
+	//UCharacter 클래스에 존재하는 GetMesh() 함수 재정의 -> PosealbeMeshComponent를 가져옴.
+	UFUNCTION()
+	virtual UPoseableMeshComponent* GetMesh() const;
 };
 
