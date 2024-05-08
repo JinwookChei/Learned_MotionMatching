@@ -21,7 +21,8 @@ public:
 
 
 //--------------------------------------
-
+// 
+// 댐퍼의 동작을 특정한 타임 스텝에 맞추되 감쇠 속도를 여전히 변동 가능하게 허용함으로써 문제를 해결
 static inline float damper_exact(float x, float g, float halflife, float dt, float eps = 1e-5f)
 {
     return lerpf(x, g, 1.0f - fast_negexpf((LN2f * dt) / (halflife + eps)));
