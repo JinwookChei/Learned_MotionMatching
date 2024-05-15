@@ -81,5 +81,27 @@ public:
 	//UCharacter 클래스에 존재하는 GetMesh() 함수 재정의 -> PosealbeMeshComponent를 가져옴.
 	UFUNCTION()
 	virtual UPoseableMeshComponent* GetMesh() const;
+
+private:
+	UPROPERTY()
+	FRotator CharacterCurrentRotation = FRotator(0,0,0);
+	UPROPERTY()
+	FRotator CharacterGaolRotation;
+
+	UPROPERTY()
+	FVector2D LeftStickValue;
+	UPROPERTY()
+	FVector2D RightStickValue;
+
+	UPROPERTY()
+	bool IsHandlingRightStick = false;
+
+	//UPROPERTY()
+	//class APlayerController* PlayerController;
+
+// 오렌지덕씨 함수
+public:
+	UFUNCTION()
+	void desired_gait_update(float& desired_gait, float& desired_gait_velocity, const float dt, const float gait_change_halflife);
 };
 

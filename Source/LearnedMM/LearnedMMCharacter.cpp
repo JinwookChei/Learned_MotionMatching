@@ -14,9 +14,168 @@
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 
-DEFINE_LOG_CATEGORY(LogTemplateCharacter);
+#include "MMCommon.h"
+#include "MMArray.h"
+#include "MMQuat.h"
+#include "MMVec.h"
+#include "MMSpring.h"
 
-//////////////////////////////////////////////////////////////////////////
+
+
+//--------------------------------------------------------------------------//
+//					 회전변환 함수											
+FVector2D RotationTransForm2D(FVector2D V, float a)
+{
+	FVector2D OutVector;
+	float cosA = FMath::Cos(a);
+	float sinA = FMath::Sin(a);
+
+	OutVector.X = cosA * V.X - sinA * V.Y;
+	OutVector.Y = sinA * V.X + cosA * V.Y;
+
+	return OutVector;
+}
+
+FVector RotationTransForm3D_Z(FVector V, float a)
+{
+	FVector OutVector;
+	float cosA = FMath::Cos(a);
+	float sinA = FMath::Sin(a);
+
+	OutVector.X = cosA * V.X - sinA * V.Y;
+	OutVector.Y = sinA * V.X + cosA * V.Y;
+	OutVector.Z = V.Z;
+
+	return OutVector;
+}
+
+//FRotator.Yaw값을 정규화된 Vector로표현
+FVector RotatorToVector(FRotator Rotator)
+{
+	float YawDegrees = Rotator.Yaw;
+	float YawRadians = FMath::DegreesToRadians(YawDegrees);
+
+	FVector NormalizedVector = FVector(FMath::Cos(YawRadians), FMath::Sin(YawRadians), 0.0f);
+
+	return NormalizedVector;
+}
+
+//--------------------------------------------------------------------------//
+
+
+//--------------------------------------------------------------------------//
+//						조이스틱 변환 관련 함수								
+
+float CalculateJoystickAngle(FVector2D JoyStick)
+{
+	float JoystickAngle = FMath::RadiansToDegrees(FMath::Atan2(JoyStick.X, JoyStick.Y));
+
+
+	return JoystickAngle;
+}
+
+FRotator CalculateJoystickAngle_FRotator(FVector2D JoyStick)
+{
+	float JoystickAngle = FMath::RadiansToDegrees(FMath::Atan2(JoyStick.X, JoyStick.Y));
+
+	return FRotator(0, JoystickAngle, 0);
+}
+
+FQuat CalculateJoystickAngle_FQuat(FVector2D JoyStick)
+{
+	float JoystickAngle = FMath::RadiansToDegrees(FMath::Atan2(JoyStick.X, JoyStick.Y));
+
+	return FRotator(0, JoystickAngle, 0).Quaternion();
+}
+
+////////////////////////////////////////////////////////////////////////
+// 오렌지덕씨 함수 시작
+//--------------------------------------------------------------------------//
+
+void ALearnedMMCharacter::desired_gait_update(float& desired_gait, float& desired_gait_velocity, const float dt, const float gait_change_halflife = 0.1f)
+{	
+	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+	if (PlayerController == nullptr) return;
+	
+	simple_spring_damper_exact(
+		desired_gait,
+		desired_gait_velocity,
+		PlayerController->IsInputKeyDown(EKeys::Gamepad_FaceButton_Bottom) ? 1.0f : 0.0f,
+		gait_change_halflife,
+		dt);
+}
+
+vec3 desired_velocity_update(
+	const vec3 gamepadstick_left,
+	const float camera_azimuth,
+	const quat simulation_rotation,
+	const float fwrd_speed,
+	const float side_speed,
+	const float back_speed)
+{
+	// Find stick position in world space by rotating using camera azimuth
+	vec3 global_stick_direction = quat_mul_vec3(
+		quat_from_angle_axis(camera_azimuth, vec3(0, 1, 0)), gamepadstick_left);
+
+	// Find stick position local to current facing direction
+	vec3 local_stick_direction = quat_inv_mul_vec3(
+		simulation_rotation, global_stick_direction);
+
+	// Scale stick by forward, sideways and backwards speeds
+	vec3 local_desired_velocity = local_stick_direction.z > 0.0 ? vec3(side_speed, 0.0f, fwrd_speed) * local_stick_direction : vec3(side_speed, 0.0f, back_speed) * local_stick_direction;
+
+	// Re-orientate into the world space
+	return quat_mul_vec3(simulation_rotation, local_desired_velocity);
+}
+
+
+quat desired_rotation_update(
+	const quat desired_rotation,
+	const vec3 gamepadstick_left,
+	const vec3 gamepadstick_right,
+	const float camera_azimuth,
+	const bool desired_strafe,
+	const vec3 desired_velocity)
+{
+	quat desired_rotation_curr = desired_rotation;
+
+	// If strafe is active then desired direction is coming from right
+	// stick as long as that stick is being used, otherwise we assume
+	// forward facing
+
+	// strafe가 활성화되어 있으면 원하는 방향은 오른쪽 스틱에서 오는 것이고,
+	// 해당 스틱이 사용 중인 경우에는 전방 향을 가정합니다.
+	if (desired_strafe)
+	{
+		vec3 desired_direction = quat_mul_vec3(quat_from_angle_axis(camera_azimuth, vec3(0, 1, 0)), vec3(0, 0, -1));
+
+		if (length(gamepadstick_right) > 0.01f)
+		{
+			desired_direction = quat_mul_vec3(quat_from_angle_axis(camera_azimuth, vec3(0, 1, 0)), normalize(gamepadstick_right));
+		}
+
+		return quat_from_angle_axis(atan2f(desired_direction.x, desired_direction.z), vec3(0, 1, 0));
+	}
+
+	// If strafe is not active the desired direction comes from the left 
+	// stick as long as that stick is being used
+
+	// strafe가 비활성화되어 있으면 원하는 방향은 해당 스틱이 사용 중인 동안 왼쪽 스틱에서 나옵니다.
+	else if (length(gamepadstick_left) > 0.01f)
+	{
+		vec3 desired_direction = normalize(desired_velocity);
+		return quat_from_angle_axis(atan2f(desired_direction.x, desired_direction.z), vec3(0, 1, 0));
+	}
+
+	// Otherwise desired direction remains the same
+	else
+	{
+		return desired_rotation_curr;
+	}
+}
+
+
+DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 // ALearnedMMCharacter
 
 ALearnedMMCharacter::ALearnedMMCharacter()
@@ -80,11 +239,39 @@ void ALearnedMMCharacter::BeginPlay()
 		}
 	}
 
+	//PlayerController = UGameplayStatics::GetPlayerController(this, 0);
 }
 
 void ALearnedMMCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	//좌측 조이스틱(이동) 키를 입력하지 않으면 입력값 초기화.
+	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+	if (PlayerController)
+	{
+		if (!PlayerController->IsInputKeyDown(EKeys::Gamepad_LeftStick_Down) && !PlayerController->IsInputKeyDown(EKeys::Gamepad_LeftStick_Up)
+			&& !PlayerController->IsInputKeyDown(EKeys::Gamepad_LeftStick_Left) && !PlayerController->IsInputKeyDown(EKeys::Gamepad_LeftStick_Right))
+		{
+			LeftStickValue = FVector2D(0, 0);
+		}
+	}
+
+	//우측 조이스틱(회전) 키를 입력하는지 체크
+	if (PlayerController)
+	{
+		if (!PlayerController->IsInputKeyDown(EKeys::Gamepad_RightStick_Down) && !PlayerController->IsInputKeyDown(EKeys::Gamepad_RightStick_Up)
+			&& !PlayerController->IsInputKeyDown(EKeys::Gamepad_RightStick_Left) && !PlayerController->IsInputKeyDown(EKeys::Gamepad_RightStick_Right))
+		{
+			IsHandlingRightStick = false;
+		}
+		else
+		{
+			IsHandlingRightStick = true;
+		}
+	}
+
+
 
 }
 
@@ -115,6 +302,7 @@ void ALearnedMMCharacter::Move(const FInputActionValue& Value)
 {
 	// input is a Vector2D
 	FVector2D MovementVector = Value.Get<FVector2D>();
+	float DeltaTime = GetWorld()->GetDeltaSeconds();
 
 	if (Controller != nullptr)
 	{
@@ -133,24 +321,59 @@ void ALearnedMMCharacter::Move(const FInputActionValue& Value)
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
 	}
+
+	///// LeftStick Value를 캐릭터 Look Axis 기준으로 회전 변환.
+	if (Controller != nullptr)
+	{
+		// find out which way is forward
+		const FRotator Rotation = Controller->GetControlRotation();
+		float Radian = -FMath::DegreesToRadians(Rotation.Yaw);
+
+		LeftStickValue = RotationTransForm2D(MovementVector, Radian);
+	}
+
+
+	///// 만약 좌측 조이스틱 입력이 없으면 Move방향으로 캐릭터 회전 및 보간.
+	if (IsHandlingRightStick == false)
+	{
+		//FRotator LeftJoystickAngle = CalculateJoystickAngle_FRotator(MovementVector);
+		//FRotator CalculatedRotation = FMath::RInterpTo(GetActorRotation(), LeftJoystickAngle, DeltaTime, 2.0f);
+
+		//SetActorRotation(CalculatedRotation);
+
+		CharacterGaolRotation = CalculateJoystickAngle_FRotator(MovementVector);
+		CharacterCurrentRotation = FMath::RInterpTo(CharacterCurrentRotation, CharacterGaolRotation, DeltaTime, 2.0f);
+		SetActorRotation(CharacterGaolRotation);
+
+	}
 }
 
 void ALearnedMMCharacter::Look(const FInputActionValue& Value)
 {
 	// input is a Vector2D
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
+	float DeltaTime = GetWorld()->GetDeltaSeconds();
 
-	if (Controller != nullptr)
-	{
-		// add yaw and pitch input to controller
-		AddControllerYawInput(LookAxisVector.X);
-		AddControllerPitchInput(LookAxisVector.Y);
-	}
+	//-----------------------------------------------------------------------------//
+	//화면전환을 고정시키고 Look을 캐릭터의 회전으로 구현 하기위해 보류.
+	//if (Controller != nullptr)
+	//{
+	//	// add yaw and pitch input to controller
+	//	AddControllerYawInput(LookAxisVector.X);
+	//	AddControllerPitchInput(LookAxisVector.Y);
+	//-----------------------------------------------------------------------------//
+
+	CharacterGaolRotation = CalculateJoystickAngle_FRotator(LookAxisVector);
+	CharacterCurrentRotation = FMath::RInterpTo(CharacterCurrentRotation, CharacterGaolRotation, DeltaTime, 2.0f);
+	SetActorRotation(CharacterGaolRotation);
 
 
-	//PoseableMesh를 활용해 관절 움직임 테스트
-	FRotator R = GetMesh()->GetBoneRotationByName(TEXT("neck_01"), EBoneSpaces::WorldSpace);
-	GetMesh()->SetBoneRotationByName(TEXT("neck_01"), R + FRotator(0, 10, 0), EBoneSpaces::WorldSpace);
+
+	//-----------------------------------------------------------------------------//
+	//PoseableMesh를 활용해 관절 움직임 테스트 코드
+	/*FRotator R = GetMesh()->GetBoneRotationByName(TEXT("neck_01"), EBoneSpaces::WorldSpace);
+	GetMesh()->SetBoneRotationByName(TEXT("neck_01"), R + FRotator(0, 10, 0), EBoneSpaces::WorldSpace);*/
+	//-----------------------------------------------------------------------------//
 
 }
 
