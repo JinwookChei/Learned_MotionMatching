@@ -45,6 +45,10 @@ class ALearnedMMCharacter : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
 
+	/** Strafe Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* StrafeAction;
+
 public:
 	ALearnedMMCharacter();
 
@@ -103,5 +107,21 @@ private:
 public:
 	UFUNCTION()
 	void desired_gait_update(float& desired_gait, float& desired_gait_velocity, const float dt, const float gait_change_halflife);
+
+	UFUNCTION()
+	void OnStrafe(const FInputActionValue& Value);
+
+	UFUNCTION()
+	void StopStrafe(const FInputActionValue& Value);
+
+// 한라봉덕씩 변수
+public:
+	UPROPERTY()
+	bool bStrafe = false;
+
+	// 카메라방위각
+	UPROPERTY()
+	float Camera_Azimuth = 0.0f;
+
 };
 

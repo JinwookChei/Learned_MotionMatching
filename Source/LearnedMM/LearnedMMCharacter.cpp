@@ -91,6 +91,15 @@ FQuat CalculateJoystickAngle_FQuat(FVector2D JoyStick)
 ////////////////////////////////////////////////////////////////////////
 // 오렌지덕씨 함수 시작
 //--------------------------------------------------------------------------//
+void ALearnedMMCharacter::OnStrafe(const FInputActionValue& Value)
+{
+	bStrafe = true;
+}
+
+void ALearnedMMCharacter::StopStrafe(const FInputActionValue& Value)
+{
+	bStrafe = false;	
+}
 
 void ALearnedMMCharacter::desired_gait_update(float& desired_gait, float& desired_gait_velocity, const float dt, const float gait_change_halflife = 0.1f)
 {	
@@ -104,6 +113,7 @@ void ALearnedMMCharacter::desired_gait_update(float& desired_gait, float& desire
 		gait_change_halflife,
 		dt);
 }
+
 
 vec3 desired_velocity_update(
 	const vec3 gamepadstick_left,
@@ -291,6 +301,10 @@ void ALearnedMMCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ALearnedMMCharacter::Look);
+
+		// Strafe
+		EnhancedInputComponent->BindAction(StrafeAction, ETriggerEvent::Started, this, &ALearnedMMCharacter::OnStrafe);
+		EnhancedInputComponent->BindAction(StrafeAction, ETriggerEvent::Completed, this, &ALearnedMMCharacter::StopStrafe);
 	}
 	else
 	{
@@ -323,29 +337,28 @@ void ALearnedMMCharacter::Move(const FInputActionValue& Value)
 	}
 
 	///// LeftStick Value를 캐릭터 Look Axis 기준으로 회전 변환.
-	if (Controller != nullptr)
-	{
-		// find out which way is forward
-		const FRotator Rotation = Controller->GetControlRotation();
-		float Radian = -FMath::DegreesToRadians(Rotation.Yaw);
+	//if (Controller != nullptr)
+	//{
+	//	// find out which way is forward
+	//	const FRotator Rotation = Controller->GetControlRotation();
+	//	float Radian = -FMath::DegreesToRadians(Rotation.Yaw);
 
-		LeftStickValue = RotationTransForm2D(MovementVector, Radian);
-	}
+	//	LeftStickValue = RotationTransForm2D(MovementVector, Radian);
+	//}
 
 
 	///// 만약 좌측 조이스틱 입력이 없으면 Move방향으로 캐릭터 회전 및 보간.
-	if (IsHandlingRightStick == false)
-	{
-		//FRotator LeftJoystickAngle = CalculateJoystickAngle_FRotator(MovementVector);
-		//FRotator CalculatedRotation = FMath::RInterpTo(GetActorRotation(), LeftJoystickAngle, DeltaTime, 2.0f);
+	//if (IsHandlingRightStick == false)
+	//{
+	//	FRotator LeftJoystickAngle = CalculateJoystickAngle_FRotator(MovementVector);
+	//	FRotator CalculatedRotation = FMath::RInterpTo(GetActorRotation(), LeftJoystickAngle, DeltaTime, 2.0f);
 
-		//SetActorRotation(CalculatedRotation);
+	//	SetActorRotation(CalculatedRotation);
 
-		CharacterGaolRotation = CalculateJoystickAngle_FRotator(MovementVector);
-		CharacterCurrentRotation = FMath::RInterpTo(CharacterCurrentRotation, CharacterGaolRotation, DeltaTime, 2.0f);
-		SetActorRotation(CharacterGaolRotation);
-
-	}
+	//	CharacterGaolRotation = CalculateJoystickAngle_FRotator(MovementVector);
+	//	CharacterCurrentRotation = FMath::RInterpTo(CharacterCurrentRotation, CharacterGaolRotation, DeltaTime, 2.0f);
+	//	SetActorRotation(CharacterGaolRotation);
+	//}
 }
 
 void ALearnedMMCharacter::Look(const FInputActionValue& Value)
@@ -353,26 +366,25 @@ void ALearnedMMCharacter::Look(const FInputActionValue& Value)
 	// input is a Vector2D
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
 	float DeltaTime = GetWorld()->GetDeltaSeconds();
+	
+	if (Controller != nullptr)
+	{
+		// add yaw and pitch input to controller
+		AddControllerYawInput(LookAxisVector.X);
+		AddControllerPitchInput(LookAxisVector.Y);
+	}
+
 
 	//-----------------------------------------------------------------------------//
-	//화면전환을 고정시키고 Look을 캐릭터의 회전으로 구현 하기위해 보류.
-	//if (Controller != nullptr)
-	//{
-	//	// add yaw and pitch input to controller
-	//	AddControllerYawInput(LookAxisVector.X);
-	//	AddControllerPitchInput(LookAxisVector.Y);
-	//-----------------------------------------------------------------------------//
-
-	CharacterGaolRotation = CalculateJoystickAngle_FRotator(LookAxisVector);
-	CharacterCurrentRotation = FMath::RInterpTo(CharacterCurrentRotation, CharacterGaolRotation, DeltaTime, 2.0f);
-	SetActorRotation(CharacterGaolRotation);
-
+	//CharacterGaolRotation = CalculateJoystickAngle_FRotator(LookAxisVector);
+	//CharacterCurrentRotation = FMath::RInterpTo(CharacterCurrentRotation, CharacterGaolRotation, DeltaTime, 2.0f);
+	//SetActorRotation(CharacterGaolRotation);
 
 
 	//-----------------------------------------------------------------------------//
 	//PoseableMesh를 활용해 관절 움직임 테스트 코드
 	/*FRotator R = GetMesh()->GetBoneRotationByName(TEXT("neck_01"), EBoneSpaces::WorldSpace);
-	GetMesh()->SetBoneRotationByName(TEXT("neck_01"), R + FRotator(0, 10, 0), EBoneSpaces::WorldSpace);*/
+	//GetMesh()->SetBoneRotationByName(TEXT("neck_01"), R + FRotator(0, 10, 0), EBoneSpaces::WorldSpace);*/
 	//-----------------------------------------------------------------------------//
 
 }
